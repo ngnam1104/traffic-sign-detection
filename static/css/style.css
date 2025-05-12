@@ -1,0 +1,190 @@
+:root {
+  --color-bg-canvas: #0d1117;
+  --color-bg-overlay: #161b22;
+  --color-bg-inset: #010409;
+  --color-bg-subtle: #21262d;
+  --color-border-default: #30363d;
+  --color-border-muted: #21262d;
+  --color-fg-default: #c9d1d9;
+  --color-fg-muted: #8b949e;
+  --color-fg-subtle: #6e7681;
+  --color-accent-fg: #58a6ff;
+  --color-accent-emphasis: #1f6feb;
+  --color-success-fg: #3fb950;
+  --color-attention-fg: #d29922;
+  --color-danger-fg: #f85149;
+  --color-primer-shadow-focus: 0 0 0 3px rgba(31, 111, 235, 0.3);
+  --color-primer-shadow-inset: inset 0 1px 0 rgba(208, 215, 222, 0.1);
+  --color-scale-gray-7: #21262d;
+  --color-scale-gray-8: #161b22;
+  --color-scale-gray-9: #0d1117;
+}
+
+body {
+  color: var(--color-fg-default);
+  background-color: var(--color-bg-canvas);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
+}
+
+.app-header {
+  background-color: var(--color-bg-inset);
+  color: var(--color-fg-default);
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.content-pane {
+  background-color: var(--color-bg-overlay);
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.file-header {
+  padding: 8px 16px;
+  background-color: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.file-actions {
+  float: right;
+}
+
+.file-info {
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--color-fg-muted);
+}
+
+.file-content {
+  padding: 16px;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+.result-container {
+  background-color: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.result-image,
+.result-video,
+.camera-preview {
+  max-width: 100%;
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.camera-preview {
+  background-color: var(--color-bg-inset);
+}
+
+.counter {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--color-fg-default);
+  text-align: center;
+  background-color: rgba(110, 118, 129, 0.4);
+  border: 1px solid transparent;
+  border-radius: 2em;
+}
+
+.octicon {
+  fill: currentColor;
+  vertical-align: text-bottom;
+}
+
+.btn {
+  color: var(--color-fg-default);
+  background-color: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-default);
+}
+
+.btn-primary {
+  color: #ffffff;
+  background-color: var(--color-accent-emphasis);
+  border-color: var(--color-accent-emphasis);
+}
+
+.btn-primary:hover {
+  background-color: #388bfd;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form-control {
+  background-color: var(--color-bg-inset);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-fg-default);
+}
+
+.Box {
+  background-color: var(--color-bg-overlay);
+  border: 1px solid var(--color-border-default);
+}
+
+.Box-header {
+  background-color: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.Box-body {
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.tabnav-tab {
+  color: var(--color-fg-muted);
+}
+
+.tabnav-tab:hover {
+  color: var(--color-fg-default);
+}
+
+.tabnav-tab.selected {
+  color: var(--color-fg-default);
+  border-color: var(--color-accent-emphasis);
+}
+
+a {
+  color: var(--color-accent-fg);
+}
+
+.Link--secondary {
+  color: var(--color-fg-muted);
+}
+
+.Link--secondary:hover {
+  color: var(--color-accent-fg);
+}
+
+.loading-indicator {
+  display: none;
+  margin-left: 10px;
+  color: var(--color-fg-muted);
+}
+
+.loading-indicator.active {
+  display: inline-block;
+}
+
+.error-message {
+  color: var(--color-danger-fg);
+  margin-top: 10px;
+  display: none;
+}
