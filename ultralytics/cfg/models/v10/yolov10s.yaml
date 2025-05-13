@@ -5,13 +5,9 @@
 # Task docs: https://docs.ultralytics.com/tasks/detect
 
 # Parameters
-<<<<<<< HEAD
-nc: 179 # number of classes
-scales: # model compound scaling constants, i.e. 'model=yolov8n.yaml' will call yolov8.yaml with scale 'n'
-=======
+
 nc: 175 # number of classes
 scales: # model compound scaling constants, i.e. 'model=yolov10n.yaml' will call yolov10.yaml with scale 'n'
->>>>>>> 2482ea2 (yolo v11 model)
   # [depth, width, max_channels]
   s: [0.33, 0.50, 1024]
 
