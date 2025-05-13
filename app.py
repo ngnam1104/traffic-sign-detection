@@ -1,13 +1,13 @@
 import gradio as gr
 import cv2
 import numpy as np
-from ultralytics import YOLOv10
+from ultralytics import YOLO
 
-model = YOLOv10("runs/last.pt") 
+model = YOLO("runs/last.pt") 
 print(model.info())
 print(model.model.names) 
 def infer_image(image):
-    results = model.predict(source=image, imgsz=640, conf=0.25)
+    results = model.predict(source=image, conf=0.25)
     return results[0].plot()
 
 def infer_video(video):
@@ -21,7 +21,7 @@ def infer_video(video):
         ret, frame = cap.read()
         if not ret:
             break
-        results = model.predict(source=frame, imgsz=640, conf=0.25)
+        results = model.predict(source=frame, conf=0.25)
         annotated_frame = results[0].plot()
         out.write(annotated_frame)
 
@@ -30,15 +30,15 @@ def infer_video(video):
     return output_path
 
 with gr.Blocks() as demo:
-    gr.Markdown("## 🔍 YOLOv10 - Detection trên ảnh & video")
+    gr.Markdown("## YOLOv11 - Detection trên ảnh & video")
 
-    with gr.Tab("📸 Ảnh"):
+    with gr.Tab("Ảnh"):
         image_input = gr.Image(type="numpy")
         image_output = gr.Image()
         image_button = gr.Button("Phát hiện đối tượng")
         image_button.click(fn=infer_image, inputs=image_input, outputs=image_output)
 
-    with gr.Tab("🎞️ Video"):
+    with gr.Tab("Video"):
         video_input = gr.Video()
         video_output = gr.Video()
         video_button = gr.Button("Phát hiện đối tượng trong video")

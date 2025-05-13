@@ -1,198 +1,110 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
+# Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
-from collections import defaultdict
-from time import time
+from collections import deque
+from math import sqrt
 
-import cv2
-import numpy as np
-
-from ultralytics.utils.checks import check_imshow
-from ultralytics.utils.plotting import Annotator, colors
+from ultralytics.solutions.solutions import BaseSolution, SolutionAnnotator, SolutionResults
+from ultralytics.utils.plotting import colors
 
 
-class SpeedEstimator:
-    """A class to estimation speed of objects in real-time video stream based on their tracks."""
+class SpeedEstimator(BaseSolution):
+    """
+    A class to estimate the speed of objects in a real-time video stream based on their tracks.
 
-    def __init__(self):
-        """Initializes the speed-estimator class with default values for Visual, Image, track and speed parameters."""
+    This class extends the BaseSolution class and provides functionality for estimating object speeds using
+    tracking data in video streams.
 
-        # Visual & im0 information
-        self.im0 = None
-        self.annotator = None
-        self.view_img = False
+    Attributes:
+        spd (Dict[int, float]): Dictionary storing speed data for tracked objects.
+        trk_hist (Dict[int, float]): Dictionary storing the object tracking data.
+        max_hist (int): maximum track history before computing speed
+        meters_per_pixel (float): Real-world meters represented by one pixel (e.g., 0.04 for 4m over 100px).
+        max_speed (int): Maximum allowed object speed; values above this will be capped at 120 km/h.
 
-        # Region information
-        self.reg_pts = [(20, 400), (1260, 400)]
-        self.region_thickness = 3
+    Methods:
+        initialize_region: Initializes the speed estimation region.
+        process: Processes input frames to estimate object speeds.
+        store_tracking_history: Stores the tracking history for an object.
+        extract_tracks: Extracts tracks from the current frame.
+        display_output: Displays the output with annotations.
 
-        # Predict/track information
-        self.clss = None
-        self.names = None
-        self.boxes = None
-        self.trk_ids = None
-        self.trk_pts = None
-        self.line_thickness = 2
-        self.trk_history = defaultdict(list)
+    Examples:
+        >>> estimator = SpeedEstimator()
+        >>> frame = cv2.imread("frame.jpg")
+        >>> results = estimator.process(frame)
+        >>> cv2.imshow("Speed Estimation", results.plot_im)
+    """
 
-        # Speed estimator information
-        self.current_time = 0
-        self.dist_data = {}
-        self.trk_idslist = []
-        self.spdl_dist_thresh = 10
-        self.trk_previous_times = {}
-        self.trk_previous_points = {}
-
-        # Check if environment support imshow
-        self.env_check = check_imshow(warn=True)
-
-    def set_args(
-        self,
-        reg_pts,
-        names,
-        view_img=False,
-        line_thickness=2,
-        region_thickness=5,
-        spdl_dist_thresh=10,
-    ):
+    def __init__(self, **kwargs):
         """
-        Configures the speed estimation and display parameters.
+        Initialize the SpeedEstimator object with speed estimation parameters and data structures.
 
         Args:
-            reg_pts (list): Initial list of points defining the speed calculation region.
-            names (dict): object detection classes names
-            view_img (bool): Flag indicating frame display
-            line_thickness (int): Line thickness for bounding boxes.
-            region_thickness (int): Speed estimation region thickness
-            spdl_dist_thresh (int): Euclidean distance threshold for speed line
+            **kwargs (Any): Additional keyword arguments passed to the parent class.
         """
-        if reg_pts is None:
-            print("Region points not provided, using default values")
-        else:
-            self.reg_pts = reg_pts
-        self.names = names
-        self.view_img = view_img
-        self.line_thickness = line_thickness
-        self.region_thickness = region_thickness
-        self.spdl_dist_thresh = spdl_dist_thresh
+        super().__init__(**kwargs)
 
-    def extract_tracks(self, tracks):
+        self.fps = self.CFG["fps"]  # assumed video FPS
+        self.frame_count = 0  # global frame count
+        self.trk_frame_ids = {}  # Track ID → first frame index
+        self.spd = {}  # Final speed per object (km/h), once locked
+        self.trk_hist = {}  # Track ID → deque of (time, position)
+        self.locked_ids = set()  # Track IDs whose speed has been finalized
+        self.max_hist = self.CFG["max_hist"]  # Required frame history before computing speed
+        self.meter_per_pixel = self.CFG["meter_per_pixel"]  # Scene scale, depends on camera details
+        self.max_speed = self.CFG["max_speed"]  # max_speed adjustment
+
+    def process(self, im0):
         """
-        Extracts results from the provided data.
+        Process an input frame to estimate object speeds based on tracking data.
 
         Args:
-            tracks (list): List of tracks obtained from the object tracking process.
+            im0 (np.ndarray): Input image for processing with shape (H, W, C) for RGB images.
+
+        Returns:
+            (SolutionResults): Contains processed image `plot_im` and `total_tracks` (number of tracked objects).
+
+        Examples:
+            >>> estimator = SpeedEstimator()
+            >>> image = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
+            >>> results = estimator.process(image)
         """
-        self.boxes = tracks[0].boxes.xyxy.cpu()
-        self.clss = tracks[0].boxes.cls.cpu().tolist()
-        self.trk_ids = tracks[0].boxes.id.int().cpu().tolist()
+        self.frame_count += 1
+        self.extract_tracks(im0)
+        annotator = SolutionAnnotator(im0, line_width=self.line_width)
 
-    def store_track_info(self, track_id, box):
-        """
-        Store track data.
+        for box, track_id, _, _ in zip(self.boxes, self.track_ids, self.clss, self.confs):
+            self.store_tracking_history(track_id, box)
 
-        Args:
-            track_id (int): object track id.
-            box (list): object bounding box data
-        """
-        track = self.trk_history[track_id]
-        bbox_center = (float((box[0] + box[2]) / 2), float((box[1] + box[3]) / 2))
-        track.append(bbox_center)
+            if track_id not in self.trk_hist:  # Initialize history if new track found
+                self.trk_hist[track_id] = deque(maxlen=self.max_hist)
+                self.trk_frame_ids[track_id] = self.frame_count
 
-        if len(track) > 30:
-            track.pop(0)
+            if track_id not in self.locked_ids:  # Update history until speed is locked
+                trk_hist = self.trk_hist[track_id]
+                trk_hist.append(self.track_line[-1])
 
-        self.trk_pts = np.hstack(track).astype(np.int32).reshape((-1, 1, 2))
-        return track
+                # Compute and lock speed once enough history is collected
+                if len(trk_hist) == self.max_hist:
+                    p0, p1 = trk_hist[0], trk_hist[-1]  # First and last points of track
+                    dt = (self.frame_count - self.trk_frame_ids[track_id]) / self.fps  # Time in seconds
+                    if dt > 0:
+                        dx, dy = p1[0] - p0[0], p1[1] - p0[1]  # pixel displacement
+                        pixel_distance = sqrt(dx * dx + dy * dy)  # get pixel distance
+                        meters = pixel_distance * self.meter_per_pixel  # convert to meters
+                        self.spd[track_id] = int(
+                            min((meters / dt) * 3.6, self.max_speed)
+                        )  # convert to km/h and store final speed
+                        self.locked_ids.add(track_id)  # prevent further updates
+                        self.trk_hist.pop(track_id, None)  # free memory
+                        self.trk_frame_ids.pop(track_id, None)  # optional: remove frame start too
 
-    def plot_box_and_track(self, track_id, box, cls, track):
-        """
-        Plot track and bounding box.
+            if track_id in self.spd:
+                speed_label = f"{self.spd[track_id]} km/h"
+                annotator.box_label(box, label=speed_label, color=colors(track_id, True))  # Draw bounding box
 
-        Args:
-            track_id (int): object track id.
-            box (list): object bounding box data
-            cls (str): object class name
-            track (list): tracking history for tracks path drawing
-        """
-        speed_label = f"{int(self.dist_data[track_id])}km/ph" if track_id in self.dist_data else self.names[int(cls)]
-        bbox_color = colors(int(track_id)) if track_id in self.dist_data else (255, 0, 255)
+        plot_im = annotator.result()
+        self.display_output(plot_im)  # Display output with base class function
 
-        self.annotator.box_label(box, speed_label, bbox_color)
-
-        cv2.polylines(self.im0, [self.trk_pts], isClosed=False, color=(0, 255, 0), thickness=1)
-        cv2.circle(self.im0, (int(track[-1][0]), int(track[-1][1])), 5, bbox_color, -1)
-
-    def calculate_speed(self, trk_id, track):
-        """
-        Calculation of object speed.
-
-        Args:
-            trk_id (int): object track id.
-            track (list): tracking history for tracks path drawing
-        """
-
-        if not self.reg_pts[0][0] < track[-1][0] < self.reg_pts[1][0]:
-            return
-        if self.reg_pts[1][1] - self.spdl_dist_thresh < track[-1][1] < self.reg_pts[1][1] + self.spdl_dist_thresh:
-            direction = "known"
-
-        elif self.reg_pts[0][1] - self.spdl_dist_thresh < track[-1][1] < self.reg_pts[0][1] + self.spdl_dist_thresh:
-            direction = "known"
-
-        else:
-            direction = "unknown"
-
-        if self.trk_previous_times[trk_id] != 0 and direction != "unknown" and trk_id not in self.trk_idslist:
-            self.trk_idslist.append(trk_id)
-
-            time_difference = time() - self.trk_previous_times[trk_id]
-            if time_difference > 0:
-                dist_difference = np.abs(track[-1][1] - self.trk_previous_points[trk_id][1])
-                speed = dist_difference / time_difference
-                self.dist_data[trk_id] = speed
-
-        self.trk_previous_times[trk_id] = time()
-        self.trk_previous_points[trk_id] = track[-1]
-
-    def estimate_speed(self, im0, tracks, region_color=(255, 0, 0)):
-        """
-        Calculate object based on tracking data.
-
-        Args:
-            im0 (nd array): Image
-            tracks (list): List of tracks obtained from the object tracking process.
-            region_color (tuple): Color to use when drawing regions.
-        """
-        self.im0 = im0
-        if tracks[0].boxes.id is None:
-            if self.view_img and self.env_check:
-                self.display_frames()
-            return im0
-        self.extract_tracks(tracks)
-
-        self.annotator = Annotator(self.im0, line_width=2)
-        self.annotator.draw_region(reg_pts=self.reg_pts, color=region_color, thickness=self.region_thickness)
-
-        for box, trk_id, cls in zip(self.boxes, self.trk_ids, self.clss):
-            track = self.store_track_info(trk_id, box)
-
-            if trk_id not in self.trk_previous_times:
-                self.trk_previous_times[trk_id] = 0
-
-            self.plot_box_and_track(trk_id, box, cls, track)
-            self.calculate_speed(trk_id, track)
-
-        if self.view_img and self.env_check:
-            self.display_frames()
-
-        return im0
-
-    def display_frames(self):
-        """Display frame."""
-        cv2.imshow("Ultralytics Speed Estimation", self.im0)
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            return
-
-
-if __name__ == "__main__":
-    SpeedEstimator()
+        # Return results with processed image and tracking summary
+        return SolutionResults(plot_im=plot_im, total_tracks=len(self.track_ids))

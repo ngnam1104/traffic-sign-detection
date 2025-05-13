@@ -1,6 +1,6 @@
-from ultralytics import YOLOv10
+from ultralytics import YOLO
 
-model = YOLOv10('yolov10n.yaml')
+model = YOLO('yolov11s.pt')
 model.model.model[-1].export = True
 model.model.model[-1].format = 'onnx'
 del model.model.model[-1].cv2

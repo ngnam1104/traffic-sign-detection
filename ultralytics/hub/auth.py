@@ -1,9 +1,9 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
+# Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
 import requests
 
 from ultralytics.hub.utils import HUB_API_ROOT, HUB_WEB_ROOT, PREFIX, request_with_credentials
-from ultralytics.utils import LOGGER, SETTINGS, emojis, is_colab
+from ultralytics.utils import IS_COLAB, LOGGER, SETTINGS, emojis
 
 API_KEY_URL = f"{HUB_WEB_ROOT}/settings?tab=api+keys"
 
@@ -18,19 +18,23 @@ class Auth:
     3. Prompting the user to enter an API key.
 
     Attributes:
-        id_token (str or bool): Token used for identity verification, initialized as False.
-        api_key (str or bool): API key for authentication, initialized as False.
+        id_token (str | bool): Token used for identity verification, initialized as False.
+        api_key (str | bool): API key for authentication, initialized as False.
         model_key (bool): Placeholder for model key, initialized as False.
     """
 
     id_token = api_key = model_key = False
 
-    def __init__(self, api_key="", verbose=False):
+    def __init__(self, api_key: str = "", verbose: bool = False):
         """
-        Initialize the Auth class with an optional API key.
+        Initialize Auth class and authenticate user.
+
+        Handles API key validation, Google Colab authentication, and new key requests. Updates SETTINGS upon successful
+        authentication.
 
         Args:
-            api_key (str, optional): May be an API key or a combination API key and model ID, i.e. key_id
+            api_key (str): API key or combined key_id format.
+            verbose (bool): Enable verbose logging.
         """
         # Split the input API key in case it contains a combined key_model and keep only the API key part
         api_key = api_key.split("_")[0]
@@ -50,7 +54,7 @@ class Auth:
                 # Attempt to authenticate with the provided API key
                 success = self.authenticate()
         # If the API key is not provided and the environment is a Google Colab notebook
-        elif is_colab():
+        elif IS_COLAB:
             # Attempt to authenticate using browser cookies
             success = self.auth_with_cookies()
         else:
@@ -64,14 +68,10 @@ class Auth:
             if verbose:
                 LOGGER.info(f"{PREFIX}New authentication successful ✅")
         elif verbose:
-            LOGGER.info(f"{PREFIX}Get API key from {API_KEY_URL} and then run 'yolo hub login API_KEY'")
+            LOGGER.info(f"{PREFIX}Get API key from {API_KEY_URL} and then run 'yolo login API_KEY'")
 
-    def request_api_key(self, max_attempts=3):
-        """
-        Prompt the user to input their API key.
-
-        Returns the model ID.
-        """
+    def request_api_key(self, max_attempts: int = 3) -> bool:
+        """Prompt the user to input their API key."""
         import getpass
 
         for attempts in range(max_attempts):
@@ -98,18 +98,19 @@ class Auth:
             raise ConnectionError("User has not authenticated locally.")
         except ConnectionError:
             self.id_token = self.api_key = False  # reset invalid
-            LOGGER.warning(f"{PREFIX}Invalid API key ⚠️")
+            LOGGER.warning(f"{PREFIX}Invalid API key")
             return False
 
     def auth_with_cookies(self) -> bool:
         """
-        Attempt to fetch authentication via cookies and set id_token. User must be logged in to HUB and running in a
-        supported browser.
+        Attempt to fetch authentication via cookies and set id_token.
+
+        User must be logged in to HUB and running in a supported browser.
 
         Returns:
             (bool): True if authentication is successful, False otherwise.
         """
-        if not is_colab():
+        if not IS_COLAB:
             return False  # Currently only works with Colab
         try:
             authn = request_with_credentials(f"{HUB_API_ROOT}/v1/auth/auto")
@@ -127,7 +128,7 @@ class Auth:
         Get the authentication header for making API requests.
 
         Returns:
-            (dict): The authentication header if id_token or API key is set, None otherwise.
+            (dict | None): The authentication header if id_token or API key is set, None otherwise.
         """
         if self.id_token:
             return {"authorization": f"Bearer {self.id_token}"}

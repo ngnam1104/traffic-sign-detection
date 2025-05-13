@@ -1,4 +1,5 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
+# Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
+
 # DOTA8 dataset 8 images from split DOTAv1 dataset by Ultralytics
 # Documentation: https://docs.ultralytics.com/datasets/obb/dota8/
 # Example usage: yolo train model=yolov8n-obb.pt data=dota8.yaml
@@ -31,4 +32,4 @@ names:
   14: swimming pool
 
 # Download script/URL (optional)
-download: https://github.com/ultralytics/yolov5/releases/download/v1.0/dota8.zip
+download: https://github.com/ultralytics/assets/releases/download/v0.0.0/dota8.zip
