@@ -29,5 +29,6 @@ if __name__ == "__main__":
 
     if train:
         train_yolo(model_id, yaml_path, epochs, batch_size, imgsz)
+        train_yolo(model_id, yaml_path, epochs, batch_size, imgsz)
     else:
-        test_yolo(trained_model_path, yaml_path)
+        test_yolo(model_id, yaml_path)
