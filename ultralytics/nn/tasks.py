@@ -1204,11 +1204,6 @@ def torch_safe_load(weight, safe_only=False):
                 "ultralytics.yolo.utils": "ultralytics.utils",
                 "ultralytics.yolo.v8": "ultralytics.models.yolo",
                 "ultralytics.yolo.data": "ultralytics.data",
-<<<<<<< HEAD
-            }
-        ):  # for legacy 8.0 Classify and Pose models
-            ckpt = torch.load(file, map_location="cpu", weights_only=False)
-=======
             },
             attributes={
                 "ultralytics.nn.modules.block.Silence": "torch.nn.Identity",  # YOLOv9e
@@ -1225,8 +1220,7 @@ def torch_safe_load(weight, safe_only=False):
                     ckpt = torch.load(f, pickle_module=safe_pickle)
             else:
                 ckpt = torch.load(file, map_location="cpu", weights_only=False)
->>>>>>> 2482ea2 (yolo v11 model)
-
+                
     except ModuleNotFoundError as e:  # e.name is missing module name
         if e.name == "models":
             raise TypeError(
