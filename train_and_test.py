@@ -22,7 +22,7 @@ if __name__ == "__main__":
     train = True  # Đặt True để train, False để test
     model_id = "traffic-sign-detection/best.pt"
     yaml_path = "datasets/tt100k.yaml"
-    epochs = 80
+    epochs = 20
     batch_size = 16
     imgsz = 1024
 
