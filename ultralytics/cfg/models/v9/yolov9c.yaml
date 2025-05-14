@@ -1,7 +1,7 @@
 # YOLOv9
 
 # parameters
-nc: 80  # number of classes
+nc: 175  # number of classes
 
 # gelan backbone
 backbone:
