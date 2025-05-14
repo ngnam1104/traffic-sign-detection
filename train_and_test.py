@@ -1,12 +1,12 @@
 from ultralytics import YOLO
 
 def train_yolo(model_id, yaml_path, epochs=50, batch_size=16, imgsz=1024):
-    model = YOLO(model_id)
-    result = model.train(    
+    model = YOLO(model_id) 
+    result = model.train(
         data=yaml_path,
         epochs=epochs,
         batch=batch_size,
-        imgsz=imgsz,             # << THÊM DÒNG NÀY
+        imgsz=imgsz,            
         optimizer='auto',
         save=True,
         save_period=1
@@ -19,15 +19,14 @@ def test_yolo(model_path, yaml_path, conf_threshold=0.25):
 
 if __name__ == "__main__":
     # ==== CẤU HÌNH ====
-    train = True     # Đặt True để train, False để test
-    model_id = "yolo11n.pt"
+    train = True  # Đặt True để train, False để test
+    model_id = "best.pt" 
     yaml_path = "datasets/tt100k.yaml"
-    epochs = 24
+    epochs = 80
     batch_size = 16
-    imgsz = 1024     # << KÍCH THƯỚC MỚI
-    trained_model_path = "runs/best.pt"
+    imgsz = 1024
 
     if train:
         train_yolo(model_id, yaml_path, epochs, batch_size, imgsz)
     else:
-        test_yolo(trained_model_path, yaml_path)
+        test_yolo(model_id, yaml_path)
