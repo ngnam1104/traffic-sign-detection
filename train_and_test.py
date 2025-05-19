@@ -19,10 +19,10 @@ def test_yolo(model_path, yaml_path, conf_threshold=0.25):
 
 if __name__ == "__main__":
     # ==== CẤU HÌNH ====
-    train = False     # Đặt True để train, False để test
+    train = True     # Đặt True để train, False để test
     model_id = "yolo11n.pt"
     yaml_path = "datasets/tt100k.yaml"
-    epochs = 24
+    epochs = 100
     batch_size = 16
     imgsz = 1024     # << KÍCH THƯỚC MỚI
     trained_model_path = "best.pt"

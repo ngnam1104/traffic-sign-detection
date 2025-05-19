@@ -12,6 +12,8 @@ from ultralytics.utils.torch_utils import autocast
 from .metrics import bbox_iou, probiou
 from .tal import bbox2dist
 
+alpha_t = [1.052, 0.526, 0.339, 0.336, 0.559, 0.396, 1.864, 0.683, 0.425, 0.351, 1.864, 0.985, 1.864, 1.864, 1.864, 0.268, 1.864, 2.954, 0.695, 0.756, 0.386, 1.864, 0.723, 0.662, 1.143, 1.477, 0.798, 1.864, 0.405, 0.278, 0.31, 1.864, 1.864, 1.864, 0.756, 1.864, 0.798, 1.477, 1.477, 1.052, 1.864, 0.889, 2.954, 0.644, 0.628, 0.391, 1.143, 0.427, 2.954, 2.954, 0.427, 0.315, 0.614, 0.586, 0.36, 0.521, 0.404, 0.985, 0.32, 1.143, 0.283, 0.295, 0.331, 0.305, 0.409, 0.303, 0.535, 0.683, 2.954, 0.798, 2.954, 0.404, 1.052, 0.436, 1.143, 1.272, 1.272, 0.415, 1.143, 1.864, 0.932, 1.477, 0.653, 0.502, 2.954, 2.954, 2.954, 2.954, 0.738, 1.864, 1.143, 1.272, 1.477, 0.889, 0.492, 0.387, 0.419, 0.662, 0.576, 0.331, 0.756, 0.36, 0.471, 0.889, 0.353, 0.48, 1.272, 0.342, 0.431, 0.477, 0.449, 0.383, 1.143, 0.484, 0.492, 0.305, 1.052, 0.279, 0.738, 1.477, 1.477, 0.889, 2.954, 0.362, 1.052, 0.46, 0.48, 0.348, 0.393, 0.349, 0.532, 0.591, 0.509, 0.567, 1.272, 1.477, 1.143, 1.864, 0.425, 1.864, 0.683, 0.523, 0.985, 0.256, 0.576, 0.756, 0.407, 1.864, 1.477, 0.342, 0.889, 0.708, 1.272, 1.052, 0.932, 1.864, 1.864, 0.672, 0.433, 1.052, 0.683, 0.576, 0.466, 0.889, 0.591, 0.889, 0.738, 1.477, 0.708, 1.272, 2.954, 1.477, 0.559, 1.272, 0.776]
+alpha_t = torch.tensor(alpha_t, dtype=torch.float32)
 
 class VarifocalLoss(nn.Module):
     """
@@ -74,7 +76,45 @@ class FocalLoss(nn.Module):
             loss *= alpha_factor
         return loss.mean(1).sum()
 
+class FocalIoULoss(nn.Module):
+    """
+    FocalIoULoss: Focal Loss applied on IoU between predicted and ground truth boxes.
+    Args:
+        alpha (float or Tensor): balancing parameter for Focal Loss, can be scalar or per-class tensor.
+        gamma (float): focusing parameter for Focal Loss.
+        reduction (str): 'mean' | 'sum' | 'none'
+    """
 
+    def __init__(self, alpha=alpha_t, gamma=2.0, reduction=None):
+        super(FocalIoULoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, pred_boxes, target_boxes, target_labels=None):
+        """
+        pred_boxes: (N, 4)
+        target_boxes: (N, 4)
+        target_labels: (N,)  # class indices, nếu dùng alpha per-class
+        """
+        iou = bbox_iou(pred_boxes, target_boxes, CIoU=False, DIoU=False, GIoU=False, eps=1e-7)
+        iou = iou.clamp(min=1e-6, max=1.0)
+        loss = -((1.0 - iou) ** self.gamma) * torch.log(iou)
+        # target_labels = target_labels.unique()
+        # Nếu alpha là mảng và có target_labels thì lấy alpha theo từng lớp
+        if target_labels is not None and self.alpha.numel() > 1:
+            alpha_factor = self.alpha.to(pred_boxes.device)[target_labels.long()]
+            loss = loss * alpha_factor
+        else:
+            loss = loss * 1.0
+
+        if self.reduction == "mean":
+            return loss.mean()
+        elif self.reduction == "sum":
+            return loss.sum()
+        else:
+            return loss
+        
 class DFLoss(nn.Module):
     """Criterion class for computing Distribution Focal Loss (DFL)."""
 
@@ -96,6 +136,53 @@ class DFLoss(nn.Module):
         ).mean(-1, keepdim=True)
 
 
+# class BboxLoss(nn.Module):
+#     """Criterion class for computing training losses for bounding boxes."""
+
+#     def __init__(self, reg_max=16):
+#         """Initialize the BboxLoss module with regularization maximum and DFL settings."""
+#         super().__init__()
+#         self.dfl_loss = DFLoss(reg_max) if reg_max > 1 else None
+
+#     def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
+#         """Compute IoU and DFL losses for bounding boxes."""
+#         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
+#         iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
+#         loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
+
+#         # DFL loss
+#         if self.dfl_loss:
+#             target_ltrb = bbox2dist(anchor_points, target_bboxes, self.dfl_loss.reg_max - 1)
+#             loss_dfl = self.dfl_loss(pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max), target_ltrb[fg_mask]) * weight
+#             loss_dfl = loss_dfl.sum() / target_scores_sum
+#         else:
+#             loss_dfl = torch.tensor(0.0).to(pred_dist.device)
+
+#         return loss_iou, loss_dfl
+
+# class RotatedBboxLoss(BboxLoss):
+#     """Criterion class for computing training losses for rotated bounding boxes."""
+
+#     def __init__(self, reg_max):
+#         """Initialize the BboxLoss module with regularization maximum and DFL settings."""
+#         super().__init__(reg_max)
+
+#     def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
+#         """Compute IoU and DFL losses for rotated bounding boxes."""
+#         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
+#         iou = probiou(pred_bboxes[fg_mask], target_bboxes[fg_mask])
+#         loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
+
+#         # DFL loss
+#         if self.dfl_loss:
+#             target_ltrb = bbox2dist(anchor_points, xywh2xyxy(target_bboxes[..., :4]), self.dfl_loss.reg_max - 1)
+#             loss_dfl = self.dfl_loss(pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max), target_ltrb[fg_mask]) * weight
+#             loss_dfl = loss_dfl.sum() / target_scores_sum
+#         else:
+#             loss_dfl = torch.tensor(0.0).to(pred_dist.device)
+
+#         return loss_iou, loss_dfl
+
 class BboxLoss(nn.Module):
     """Criterion class for computing training losses for bounding boxes."""
 
@@ -103,23 +190,27 @@ class BboxLoss(nn.Module):
         """Initialize the BboxLoss module with regularization maximum and DFL settings."""
         super().__init__()
         self.dfl_loss = DFLoss(reg_max) if reg_max > 1 else None
+        self.focal_iou_loss = FocalIoULoss(alpha=alpha_t, gamma=2.0, reduction=None)  # sử dụng FocalIoULoss
 
-    def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
-        """Compute IoU and DFL losses for bounding boxes."""
+    def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask, target_labels):
+        """Compute Focal IoU and DFL losses for bounding boxes."""
+        # Focal IoU Loss
+        loss_iou = self.focal_iou_loss(pred_bboxes[fg_mask], target_bboxes[fg_mask], target_labels)
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
-        iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
-        loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
-
+        loss_iou = (loss_iou * weight).sum() / target_scores_sum
         # DFL loss
         if self.dfl_loss:
             target_ltrb = bbox2dist(anchor_points, target_bboxes, self.dfl_loss.reg_max - 1)
-            loss_dfl = self.dfl_loss(pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max), target_ltrb[fg_mask]) * weight
+            weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
+            loss_dfl = self.dfl_loss(
+                pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max),
+                target_ltrb[fg_mask]
+            ) * weight
             loss_dfl = loss_dfl.sum() / target_scores_sum
         else:
             loss_dfl = torch.tensor(0.0).to(pred_dist.device)
 
         return loss_iou, loss_dfl
-
 
 class RotatedBboxLoss(BboxLoss):
     """Criterion class for computing training losses for rotated bounding boxes."""
@@ -127,17 +218,24 @@ class RotatedBboxLoss(BboxLoss):
     def __init__(self, reg_max):
         """Initialize the BboxLoss module with regularization maximum and DFL settings."""
         super().__init__(reg_max)
+        self.focal_iou_loss = FocalIoULoss(alpha=alpha_t, gamma=2.0, reduction="mean")
 
-    def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask):
-        """Compute IoU and DFL losses for rotated bounding boxes."""
-        weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
+    def forward(self, pred_dist, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask, target_labels):
+        """Compute Focal IoU and DFL losses for rotated bounding boxes."""
+        # Focal IoU Loss sử dụng probiou
         iou = probiou(pred_bboxes[fg_mask], target_bboxes[fg_mask])
-        loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
+        iou = iou.clamp(min=1e-6, max=1.0)
+        loss_iou = -self.focal_iou_loss.alpha[target_labels] * ((1.0 - iou) ** self.focal_iou_loss.gamma) * torch.log(iou)
+        loss_iou = loss_iou.mean() if self.focal_iou_loss.reduction == "mean" else loss_iou.sum()
 
         # DFL loss
         if self.dfl_loss:
             target_ltrb = bbox2dist(anchor_points, xywh2xyxy(target_bboxes[..., :4]), self.dfl_loss.reg_max - 1)
-            loss_dfl = self.dfl_loss(pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max), target_ltrb[fg_mask]) * weight
+            weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
+            loss_dfl = self.dfl_loss(
+                pred_dist[fg_mask].view(-1, self.dfl_loss.reg_max),
+                target_ltrb[fg_mask]
+            ) * weight
             loss_dfl = loss_dfl.sum() / target_scores_sum
         else:
             loss_dfl = torch.tensor(0.0).to(pred_dist.device)
@@ -238,7 +336,7 @@ class v8DetectionLoss:
         # dfl_conf = pred_distri.view(batch_size, -1, 4, self.reg_max).detach().softmax(-1)
         # dfl_conf = (dfl_conf.amax(-1).mean(-1) + dfl_conf.amax(-1).amin(-1)) / 2
 
-        _, target_bboxes, target_scores, fg_mask, _ = self.assigner(
+        _, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
             # pred_scores.detach().sigmoid() * 0.8 + dfl_conf.unsqueeze(-1) * 0.2,
             pred_scores.detach().sigmoid(),
             (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
@@ -247,7 +345,10 @@ class v8DetectionLoss:
             gt_bboxes,
             mask_gt,
         )
-
+        if gt_labels.shape[1] == 0 or fg_mask.sum() == 0:
+            target_labels = torch.zeros(0, device=gt_labels.device, dtype=torch.long)
+        else:
+            target_labels = gt_labels.squeeze(-1).gather(1, target_gt_idx.long())[fg_mask]
         target_scores_sum = max(target_scores.sum(), 1)
 
         # Cls loss
@@ -258,7 +359,7 @@ class v8DetectionLoss:
         if fg_mask.sum():
             target_bboxes /= stride_tensor
             loss[0], loss[2] = self.bbox_loss(
-                pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask
+                pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask, target_labels
             )
 
         loss[0] *= self.hyp.box  # box gain
@@ -321,7 +422,10 @@ class v8SegmentationLoss(v8DetectionLoss):
             gt_bboxes,
             mask_gt,
         )
-
+        if gt_labels.shape[1] == 0 or fg_mask.sum() == 0:
+            target_labels = torch.zeros(0, device=gt_labels.device, dtype=torch.long)
+        else:
+            target_labels = gt_labels.squeeze(-1).gather(1, target_gt_idx.long())[fg_mask]
         target_scores_sum = max(target_scores.sum(), 1)
 
         # Cls loss
@@ -338,6 +442,7 @@ class v8SegmentationLoss(v8DetectionLoss):
                 target_scores,
                 target_scores_sum,
                 fg_mask,
+                target_labels,
             )
             # Masks loss
             masks = batch["masks"].to(self.device).float()
@@ -501,7 +606,10 @@ class v8PoseLoss(v8DetectionLoss):
             gt_bboxes,
             mask_gt,
         )
-
+        if gt_labels.shape[1] == 0 or fg_mask.sum() == 0:
+            target_labels = torch.zeros(0, device=gt_labels.device, dtype=torch.long)
+        else:
+            target_labels = gt_labels.squeeze(-1).gather(1, target_gt_idx.long())[fg_mask]
         target_scores_sum = max(target_scores.sum(), 1)
 
         # Cls loss
@@ -512,7 +620,7 @@ class v8PoseLoss(v8DetectionLoss):
         if fg_mask.sum():
             target_bboxes /= stride_tensor
             loss[0], loss[4] = self.bbox_loss(
-                pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask
+                pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask, target_labels
             )
             keypoints = batch["keypoints"].to(self.device).float().clone()
             keypoints[..., 0] *= imgsz[1]
@@ -685,7 +793,7 @@ class v8OBBLoss(v8DetectionLoss):
         bboxes_for_assigner = pred_bboxes.clone().detach()
         # Only the first four elements need to be scaled
         bboxes_for_assigner[..., :4] *= stride_tensor
-        _, target_bboxes, target_scores, fg_mask, _ = self.assigner(
+        _, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
             pred_scores.detach().sigmoid(),
             bboxes_for_assigner.type(gt_bboxes.dtype),
             anchor_points * stride_tensor,
@@ -693,7 +801,10 @@ class v8OBBLoss(v8DetectionLoss):
             gt_bboxes,
             mask_gt,
         )
-
+        if gt_labels.shape[1] == 0 or fg_mask.sum() == 0:
+            target_labels = torch.zeros(0, device=gt_labels.device, dtype=torch.long)
+        else:
+            target_labels = gt_labels.squeeze(-1).gather(1, target_gt_idx.long())[fg_mask]
         target_scores_sum = max(target_scores.sum(), 1)
 
         # Cls loss
@@ -704,7 +815,7 @@ class v8OBBLoss(v8DetectionLoss):
         if fg_mask.sum():
             target_bboxes[..., :4] /= stride_tensor
             loss[0], loss[2] = self.bbox_loss(
-                pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask
+                pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask, target_labels
             )
         else:
             loss[0] += (pred_angle * 0).sum()
