@@ -22,8 +22,8 @@ if __name__ == "__main__":
     train = True     # Đặt True để train, False để test
     model_id = "traffic-sign-detection/best_enhanced_loss.pt"
     yaml_path = "datasets/tt100k.yaml"
-    epochs = 5
-    batch_size = 32
+    epochs = 20
+    batch_size = 16
     imgsz = 1024     # << KÍCH THƯỚC MỚI
     trained_model_path = "best.pt"
 
