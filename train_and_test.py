@@ -20,7 +20,7 @@ def test_yolo(model_path, yaml_path, conf_threshold=0.25):
 if __name__ == "__main__":
     # ==== CẤU HÌNH ====
     train = True     # Đặt True để train, False để test
-    model_id = "traffic-sign-detection/best.pt"
+    model_id = "traffic-sign-detection/yolo11n.pt"
     yaml_path = "datasets/tt100k.yaml"
     epochs = 100
     batch_size = 16
