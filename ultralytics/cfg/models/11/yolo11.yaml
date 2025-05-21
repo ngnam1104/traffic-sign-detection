@@ -32,33 +32,34 @@ backbone:
 # Thêm phần neck mới
 neck:
   # Process P5 from backbone
-  - [-1, 1, Conv, [512, 1, 1]]  # 11: Reduce channels from P5
-  - [-1, 1, ContextGuidedBlock, [512]]  # 12: Context-guided block
-  - [-1, 1, RepNCSPELAN, [512]]  # 13: Replace C3k2 with RepNCSPELAN
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]  # 14: Upsample
-  
-  # Combine with P4 from backbone
-  - [[-1, 6], 1, Concat, [1]]  # 15: Concat with P4 from backbone
-  - [-1, 1, MLABlock, [512]]  # 16: MLABlock for feature fusion
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]  # 17: Upsample
-  
-  # Combine with P3 from backbone
-  - [[-1, 4], 1, Concat, [1]]  # 18: Concat with P3 from backbone
+  - [-1, 1, Conv, [512, 1, 1]]                # 11: Reduce channels from P5
+  - [-1, 1, ContextGuidedBlock, [512]]        # 12: Context-guided block
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 13: Upsample
 
-# Chỉnh sửa phần head để kết nối từ neck mới
+  # Combine with P4 from backbone
+  - [[-1, 6], 1, Concat, [1]]                 # 14: Concat with P4
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 15: Upsample
+
+  # Combine with P3 from backbone
+  - [[-1, 4], 1, Concat, [1]]                 # 16: Concat with P3
+
+  # Feature fusion after all concatenations
+  - [-1, 1, RepNCSPELAN, [512]]               # 17: Feature enhancement
+  - [-1, 1, MLABlock, [512]]                  # 18: MLABlock for deep fusion
+
 head:
   # P3 processing
-  - [-1, 1, RepNCSPELAN, [256]]  # 19: P3 head
-  - [-1, 1, Conv, [256, 3, 2]]  # 20: Downsample to P4 size
-  
+  - [-1, 1, RepNCSPELAN, [256]]               # 19: P3 head
+  - [-1, 1, Conv, [256, 3, 2]]                # 20: Downsample to P4 size
+
   # P4 processing
-  - [[-1, 16], 1, Concat, [1]]  # 21: Concat with P4 features from neck
-  - [-1, 1, RepNCSPELAN, [512]]  # 22: P4 head
-  - [-1, 1, Conv, [512, 3, 2]]  # 23: Downsample to P5 size
-  
+  - [[-1, 14], 1, Concat, [1]]                # 21: Concat with P4 neck feature (from index 14)
+  - [-1, 1, RepNCSPELAN, [512]]               # 22: P4 head
+  - [-1, 1, Conv, [512, 3, 2]]                # 23: Downsample to P5 size
+
   # P5 processing
-  - [[-1, 13], 1, Concat, [1]]  # 24: Concat with P5 features from modified neck
-  - [-1, 1, RepNCSPELAN, [1024]]  # 25: P5 head
-  
+  - [[-1, 11], 1, Concat, [1]]                # 24: Concat with P5 neck feature (from index 11)
+  - [-1, 1, RepNCSPELAN, [1024]]              # 25: P5 head
+
   # Detection layer
-  - [[19, 22, 25], 1, Detect, [nc]]  # 26: Detect(P3, P4, P5)
+  - [[19, 22, 25], 1, Detect, [nc]]           # 26: Detect on P3, P4, P5

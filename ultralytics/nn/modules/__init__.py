@@ -59,6 +59,9 @@ from .block import (
     ResNetLayer,
     SCDown,
     TorchVision,
+    ContextGuidedBlock,  # Mới thêm
+    MLABlock,            # Mới thêm
+    RepNCSPELAN, 
 )
 from .conv import (
     CBAM,
@@ -179,4 +182,7 @@ __all__ = (
     "TorchVision",
     "Index",
     "A2C2f",
+    "ContextGuidedBlock",  # Mới thêm
+    "MLABlock",            # Mới thêm
+    "RepNCSPELAN", 
 )

@@ -1968,58 +1968,57 @@ class SAVPE(nn.Module):
 
         return F.normalize(aggregated.transpose(-2, -3).reshape(B, Q, -1), dim=-1, p=2)
     
-    class ContextGuidedBlock(nn.Module):
-        """Context Guided Block for capturing global context"""
-        def __init__(self, c):
-            super().__init__()
-            self.local_branch = nn.Sequential(
-                nn.Conv2d(c, c, 3, 1, 1, groups=c, bias=False),
-                nn.BatchNorm2d(c),
-                nn.Conv2d(c, c, 1, 1, bias=False),
-                nn.BatchNorm2d(c),
-                nn.SiLU()
-            )
-            self.global_branch = nn.Sequential(
-                nn.AdaptiveAvgPool2d(1),
-                nn.Conv2d(c, c, 1, bias=False),
-                nn.BatchNorm2d(c),
-                nn.SiLU()
-            )
-            self.transform = nn.Conv2d(c*2, c, 1, bias=False)
-            self.bn = nn.BatchNorm2d(c)
-            self.act = nn.SiLU()
+class ContextGuidedBlock(nn.Module):
+    """Context Guided Block for capturing global context"""
+    def __init__(self, c):
+        super().__init__()
+        self.local_branch = nn.Sequential(
+            nn.Conv2d(c, c, 3, 1, 1, groups=c, bias=False),
+            nn.BatchNorm2d(c),
+            nn.Conv2d(c, c, 1, 1, bias=False),
+            nn.BatchNorm2d(c),
+            nn.SiLU()
+        )
+        self.global_branch = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(c, c, 1, bias=False),
+            nn.BatchNorm2d(c),
+            nn.SiLU()
+        )
+        self.transform = nn.Conv2d(c*2, c, 1, bias=False)
+        self.bn = nn.BatchNorm2d(c)
+        self.act = nn.SiLU()
             
-        def forward(self, x):
-            local_feat = self.local_branch(x)
-            global_feat = self.global_branch(x)
-            global_feat = global_feat.expand_as(local_feat)
-            feat = torch.cat([local_feat, global_feat], dim=1)
-            return self.act(self.bn(self.transform(feat)))
+    def forward(self, x):
+        local_feat = self.local_branch(x)
+        global_feat = self.global_branch(x)
+        global_feat = global_feat.expand_as(local_feat)
+        feat = torch.cat([local_feat, global_feat], dim=1)
+        return self.act(self.bn(self.transform(feat)))
 
 
-    class MLABlock(nn.Module):
-        """Multi-Level Aggregation Block"""
-        def __init__(self, c1, c2=None):
-            super().__init__()
-            c2 = c2 or c1
-            self.cv1 = Conv(c1, c2, 1, 1)
-            self.cv2 = Conv(c1, c2, 3, 1)
-            self.cv3 = Conv(c2*2, c2, 1, 1)
+class MLABlock(nn.Module):
+    """Multi-Level Aggregation Block"""
+    def __init__(self, c1, c2=None):
+        super().__init__()
+        c2 = c2 or c1
+        self.cv1 = Conv(c1, c2, 1, 1)
+        self.cv2 = Conv(c1, c2, 3, 1)
+        self.cv3 = Conv(c2*2, c2, 1, 1)
+          
+    def forward(self, x):
+        return self.cv3(torch.cat([self.cv1(x), self.cv2(x)], 1))
+
+class RepNCSPELAN(nn.Module):
+    """RepNCSPELAN Module (Replacement for C3k2 block with RepCSP)"""
+    def __init__(self, c1, c2=None, n=1, shortcut=True, g=1, e=0.5):
+        super().__init__()
+        c2 = c2 or c1
+        c_ = int(c1 * e)  # hidden channels
+        self.cv1 = Conv(c1, c_, 1, 1)
+        self.cv2 = Conv(c1, c_, 1, 1) 
+        self.m = nn.Sequential(*(RepConv(c_, c_) for _ in range(n)))
+        self.cv3 = Conv(2 * c_, c2, 1, 1)
             
-        def forward(self, x):
-            return self.cv3(torch.cat([self.cv1(x), self.cv2(x)], 1))
-
-
-    class RepNCSPELAN(nn.Module):
-        """RepNCSPELAN Module (Replacement for C3k2 block with RepCSP)"""
-        def __init__(self, c1, c2=None, n=1, shortcut=True, g=1, e=0.5):
-            super().__init__()
-            c2 = c2 or c1
-            c_ = int(c1 * e)  # hidden channels
-            self.cv1 = Conv(c1, c_, 1, 1)
-            self.cv2 = Conv(c1, c_, 1, 1) 
-            self.m = nn.Sequential(*(RepConv(c_, c_) for _ in range(n)))
-            self.cv3 = Conv(2 * c_, c2, 1, 1)
-            
-        def forward(self, x):
-            return self.cv3(torch.cat((self.m(self.cv1(x)), self.cv2(x)), 1))
+    def forward(self, x):
+        return self.cv3(torch.cat((self.m(self.cv1(x)), self.cv2(x)), 1))
