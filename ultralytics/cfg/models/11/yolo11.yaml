@@ -29,22 +29,36 @@ backbone:
   - [-1, 1, SPPF, [1024, 5]] # 9
   - [-1, 2, C2PSA, [1024]] # 10
 
-# YOLO11n head
+# Thêm phần neck mới
+neck:
+  # Process P5 from backbone
+  - [-1, 1, Conv, [512, 1, 1]]  # 11: Reduce channels from P5
+  - [-1, 1, ContextGuidedBlock, [512]]  # 12: Context-guided block
+  - [-1, 1, RepNCSPELAN, [512]]  # 13: Replace C3k2 with RepNCSPELAN
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]  # 14: Upsample
+  
+  # Combine with P4 from backbone
+  - [[-1, 6], 1, Concat, [1]]  # 15: Concat with P4 from backbone
+  - [-1, 1, MLABlock, [512]]  # 16: MLABlock for feature fusion
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]  # 17: Upsample
+  
+  # Combine with P3 from backbone
+  - [[-1, 4], 1, Concat, [1]]  # 18: Concat with P3 from backbone
+
+# Chỉnh sửa phần head để kết nối từ neck mới
 head:
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
-  - [[-1, 6], 1, Concat, [1]] # cat backbone P4
-  - [-1, 2, C3k2, [512, False]] # 13
-
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
-  - [[-1, 4], 1, Concat, [1]] # cat backbone P3
-  - [-1, 2, C3k2, [256, False]] # 16 (P3/8-small)
-
-  - [-1, 1, Conv, [256, 3, 2]]
-  - [[-1, 13], 1, Concat, [1]] # cat head P4
-  - [-1, 2, C3k2, [512, False]] # 19 (P4/16-medium)
-
-  - [-1, 1, Conv, [512, 3, 2]]
-  - [[-1, 10], 1, Concat, [1]] # cat head P5
-  - [-1, 2, C3k2, [1024, True]] # 22 (P5/32-large)
-
-  - [[16, 19, 22], 1, Detect, [nc]] # Detect(P3, P4, P5)
+  # P3 processing
+  - [-1, 1, RepNCSPELAN, [256]]  # 19: P3 head
+  - [-1, 1, Conv, [256, 3, 2]]  # 20: Downsample to P4 size
+  
+  # P4 processing
+  - [[-1, 16], 1, Concat, [1]]  # 21: Concat with P4 features from neck
+  - [-1, 1, RepNCSPELAN, [512]]  # 22: P4 head
+  - [-1, 1, Conv, [512, 3, 2]]  # 23: Downsample to P5 size
+  
+  # P5 processing
+  - [[-1, 13], 1, Concat, [1]]  # 24: Concat with P5 features from modified neck
+  - [-1, 1, RepNCSPELAN, [1024]]  # 25: P5 head
+  
+  # Detection layer
+  - [[19, 22, 25], 1, Detect, [nc]]  # 26: Detect(P3, P4, P5)
