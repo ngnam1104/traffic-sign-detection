@@ -29,37 +29,22 @@ backbone:
   - [-1, 1, SPPF, [1024, 5]] # 9
   - [-1, 2, C2PSA, [1024]] # 10
 
-# Thêm phần neck mới
-neck:
-  # Process P5 from backbone
-  - [-1, 1, Conv, [512, 1, 1]]                # 11: Reduce channels from P5
-  - [-1, 1, ContextGuidedBlock, [512]]        # 12: Context-guided block
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 13: Upsample
-
-  # Combine with P4 from backbone
-  - [[-1, 6], 1, Concat, [1]]                 # 14: Concat with P4
-  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 15: Upsample
-
-  # Combine with P3 from backbone
-  - [[-1, 4], 1, Concat, [1]]                 # 16: Concat with P3
-
-  # Feature fusion after all concatenations
-  - [-1, 1, RepNCSPELAN, [512]]               # 17: Feature enhancement
-  - [-1, 1, MLABlock, [512]]                  # 18: MLABlock for deep fusion
-
+# YOLO11n head
 head:
-  # P3 processing
-  - [-1, 1, RepNCSPELAN, [256]]               # 19: P3 head
-  - [-1, 1, Conv, [256, 3, 2]]                # 20: Downsample to P4 size
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 6], 1, Concat, [1]]              # cat backbone P4
+  - [-1, 1, MLABlock, [512]]              # Multi-Level Aggregation Block
 
-  # P4 processing
-  - [[-1, 14], 1, Concat, [1]]                # 21: Concat with P4 neck feature (from index 14)
-  - [-1, 1, RepNCSPELAN, [512]]               # 22: P4 head
-  - [-1, 1, Conv, [512, 3, 2]]                # 23: Downsample to P5 size
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 4], 1, Concat, [1]]              # cat backbone P3
+  - [-1, 1, RepNCSPELAN4, [512, 512, 256, 256]]  # P3/8-small
 
-  # P5 processing
-  - [[-1, 11], 1, Concat, [1]]                # 24: Concat with P5 neck feature (from index 11)
-  - [-1, 1, RepNCSPELAN, [1024]]              # 25: P5 head
+  - [-1, 1, Conv, [256, 3, 2]]             # downsample
+  - [-1, 1, ContextGuidedBlock, [256]]     # context-guided block
+  - [-1, 1, RepNCSPELAN4, [256, 256, 128, 128]]  # P4/16-medium
 
-  # Detection layer
-  - [[19, 22, 25], 1, Detect, [nc]]           # 26: Detect on P3, P4, P5
+  - [-1, 1, Conv, [512, 3, 2]]             # downsample
+  - [-1, 1, ContextGuidedBlock, [512]]     # context-guided block
+  - [-1, 1, RepNCSPELAN4, [512, 512, 256, 256]]  # P5/32-large
+
+  - [[16, 19, 22], 1, Detect, [nc]]        # Detect(P3, P4, P5)
