@@ -17,7 +17,7 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO)
 
-model = YOLO("best.pt")
+model = YOLO("best_enhanced_loss.pt")
 model_lock = Lock()
 
 def allowed_file(filename):

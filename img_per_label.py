@@ -368,11 +368,10 @@ for i in range(0, len(lines), 2):
 # Tạo mảng số lượng tương ứng với mảng `names`
 quantities = [label_quantity_dict.get(name, 0) for name in names]
 quantities = np.array(quantities)
+alpha_t = np.log(quantities.sum() / quantities)
+alpha_t = alpha_t / alpha_t.mean()     # giữ tỷ lệ giữa nhãn
+alpha_t = alpha_t * 5.0                # tăng độ mạnh của loss
 
-alpha_t = 1 / np.log(quantities + 1e-6 + 1)  # cộng 1 tránh log(0), +1e-6 tránh chia 0
-alpha_t = 1 / np.log(quantities + 1 + 1e-6)  # tạo alpha_t
-mean_alpha = alpha_t.mean()                   # tính trung bình
-alpha_t = alpha_t / mean_alpha                # chuẩn hóa để kỳ vọng = 1
 
 print([round(x, 3) for x in alpha_t])
 
