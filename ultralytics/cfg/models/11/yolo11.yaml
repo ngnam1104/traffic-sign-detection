@@ -6,7 +6,7 @@
 
 # Parameters
 nc: 175  # number of classes
-scales: # model compound scaling constants, i.e. 'model=yolo_fix_n.yaml' will call yolo_fix.yaml with scale 'n'
+scales: # model compound scaling constants
   # [depth, width, max_channels]
   n: [0.50, 0.25, 1024] # summary: 181 layers, 2624080 parameters, 2624064 gradients, 6.6 GFLOPs
   s: [0.50, 0.50, 1024] # summary: 181 layers, 9458752 parameters, 9458736 gradients, 21.7 GFLOPs
@@ -32,7 +32,7 @@ backbone:
 head:
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 11
   - [[-1, 6], 1, Concat, [1]] # cat backbone P4 # 12
-  - [-1, 2, MLABlock, [512, False]] # 13
+  - [-1, 2, MLABlock, []] # 13 - MLABlock will use c1 as both input and output
   
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 14
   - [[-1, 4], 1, Concat, [1]] # cat backbone P3 # 15
@@ -40,12 +40,12 @@ head:
   
   - [-1, 1, Conv, [256, 3, 2]] # 17
   - [[-1, 13], 1, Concat, [1]] # cat head P4 # 18
-  - [-1, 1, ContextGuidedBlock, [256]] # 19
+  - [-1, 1, ContextGuidedBlock, []] # 19 - ContextGuidedBlock will use c1 as both input and output
   - [-1, 1, RepNCSPELAN4, [256]] # 20 (P4/16-medium)
   
   - [-1, 1, Conv, [512, 3, 2]] # 21
   - [[-1, 10], 1, Concat, [1]] # cat head P5 # 22
-  - [-1, 1, ContextGuidedBlock, [1024]] # 23
+  - [-1, 1, ContextGuidedBlock, []] # 23 - ContextGuidedBlock will use c1 as both input and output
   - [-1, 2, RepNCSPELAN4, [1024, True]] # 24 (P5/32-large)
   
   - [[16, 20, 24], 1, Detect, [nc]] # Detect(P3, P4, P5)
