@@ -2023,25 +2023,23 @@ class ContextGuidedBlock(nn.Module):
 
 
 class MLABlock(nn.Module):
-    """Mamba-Like Linear Attention (MLLA) Block from YOLO-FIX paper"""
-    
-    def __init__(self, c1, reduction_ratio=16):  # Loại bỏ c2, sử dụng c1 từ input
+    def __init__(self, c1, reduction_ratio=16):  # Thứ tự: c1 trước, reduction_ratio sau
         super().__init__()
         self.c1 = c1
+        self.reduction_ratio = reduction_ratio
         
-        # Adaptive Router components
+        # Global context components
         self.global_pool = nn.AdaptiveAvgPool2d(1)
         self.fc1 = nn.Linear(c1, c1 // reduction_ratio)
         self.fc2 = nn.Linear(c1 // reduction_ratio, 1)
         self.sigmoid = nn.Sigmoid()
         
-        # Shallow and deep backbone networks
+        # Shallow và deep path
         self.shallow_path = nn.Sequential(
-            Conv(c1, c1, 3, 1, 1),  # Giữ nguyên số kênh
+            Conv(c1, c1, 3, 1, 1),
             nn.BatchNorm2d(c1),
             nn.ReLU(inplace=True)
         )
-        
         self.deep_path = nn.Sequential(
             Conv(c1, c1, 3, 1, 1),
             nn.BatchNorm2d(c1),
@@ -2050,21 +2048,6 @@ class MLABlock(nn.Module):
             nn.BatchNorm2d(c1),
             nn.ReLU(inplace=True)
         )
-        
-    def forward(self, x):
-        B, C, _, _ = x.shape  # Lấy c1 từ input
-        
-        # Adaptive Router
-        z = self.global_pool(x).view(B, C)
-        z = F.relu(self.fc1(z))
-        s = self.sigmoid(self.fc2(z))
-        
-        # Dynamic path selection
-        if s.mean() >= 0.5:
-            return self.deep_path(x)
-        else:
-            return self.shallow_path(x)
-
 
 class RepNCSPELAN(nn.Module):
     """RepNCSPELAN Module (Replacement for C3k2 block with RepCSP)"""
