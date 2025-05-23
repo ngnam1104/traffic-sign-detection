@@ -1456,9 +1456,10 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         if m in base_modules:
             # Special handling for custom modules
             if m is MLABlock:
-                # MLABlock: input channels only, output = input
-                args = [16]
-                c2 = c1
+                # Xác định reduction_ratio từ args (mặc định 16 nếu không có)
+                reduction_ratio = args[0] if args else 16  # Lấy giá trị từ YAML hoặc mặc định
+                args = [c1, reduction_ratio]  # Truyền c1 và reduction_ratio vào constructor
+                c2 = c1  # Đầu ra bằng đầu vào
             elif m is ContextGuidedBlock:
                 # ContextGuidedBlock: c1 required, c2 optional
                 if not args:
