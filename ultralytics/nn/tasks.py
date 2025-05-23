@@ -1457,8 +1457,8 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             # Special handling for custom modules
             if m is MLABlock:
                 # MLABlock: input channels only, output = input
+                args = [16]
                 c2 = c1
-                args = [c1]  # Only pass c1 as dim parameter
             elif m is ContextGuidedBlock:
                 # ContextGuidedBlock: c1 required, c2 optional
                 if not args:
