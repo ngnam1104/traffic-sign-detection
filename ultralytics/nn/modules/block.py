@@ -1967,58 +1967,112 @@ class SAVPE(nn.Module):
         aggregated = score.transpose(-2, -3) @ x.reshape(B, self.c, C // self.c, -1).transpose(-1, -2)
 
         return F.normalize(aggregated.transpose(-2, -3).reshape(B, Q, -1), dim=-1, p=2)
-    
-class ContextGuidedBlock(nn.Module):
-    """Context Guided Block for capturing global context"""
-    def __init__(self, c):
-        super().__init__()
-        self.local_branch = nn.Sequential(
-            nn.Conv2d(c, c, 3, 1, 1, groups=c, bias=False),
-            nn.BatchNorm2d(c),
-            nn.Conv2d(c, c, 1, 1, bias=False),
-            nn.BatchNorm2d(c),
-            nn.SiLU()
-        )
-        self.global_branch = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(c, c, 1, bias=False),
-            nn.BatchNorm2d(c),
-            nn.SiLU()
-        )
-        self.transform = nn.Conv2d(c*2, c, 1, bias=False)
-        self.bn = nn.BatchNorm2d(c)
-        self.act = nn.SiLU()
-            
-    def forward(self, x):
-        local_feat = self.local_branch(x)
-        global_feat = self.global_branch(x)
-        global_feat = global_feat.expand_as(local_feat)
-        feat = torch.cat([local_feat, global_feat], dim=1)
-        return self.act(self.bn(self.transform(feat)))
 
+class ContextGuidedBlock(nn.Module):
+    
+    def __init__(self, c1, c2=None, reduction=16):
+        """
+        Initialize Context Guided Block.
+        
+        Args:
+            c1 (int): Input channels.
+            c2 (int): Output channels (if None, same as c1).
+            reduction (int): Channel reduction ratio for attention.
+        """
+        super(ContextGuidedBlock, self).__init__()
+        if c2 is None:
+            c2 = c1
+            
+        self.c1 = c1
+        self.c2 = c2
+        
+        # Global context modeling
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc1 = Conv(c1, c1 // reduction, 1, 1, act=True)
+        self.fc2 = Conv(c1 // reduction, c1, 1, 1, act=False)
+        self.sigmoid = nn.Sigmoid()
+        
+        # Local feature refinement
+        self.local_conv = Conv(c1, c1, 3, 1, 1)
+        
+        # Feature fusion
+        if c1 != c2:
+            self.proj = Conv(c1, c2, 1, 1)
+        else:
+            self.proj = nn.Identity()
+    
+    def forward(self, x):
+        """Forward pass of Context Guided Block."""
+        # Global context attention
+        glob = self.global_pool(x)
+        glob = self.fc2(self.fc1(glob))
+        attention = self.sigmoid(glob)
+        
+        # Apply attention to input
+        attended = x * attention
+        
+        # Local feature refinement
+        local_feat = self.local_conv(attended)
+        
+        # Combine with original features
+        output = local_feat + x
+        
+        # Project to output channels if needed
+        output = self.proj(output)
+        
+        return output
 
 class MLABlock(nn.Module):
-    """Multi-Level Aggregation Block"""
-    def __init__(self, c1, c2=None):
-        super().__init__()
-        c2 = c2 or c1
-        self.cv1 = Conv(c1, c2, 1, 1)
-        self.cv2 = Conv(c1, c2, 3, 1)
-        self.cv3 = Conv(c2*2, c2, 1, 1)
-          
+    """Mamba-Like Linear Attention (MLLA) Block from YOLO-FIX paper"""
+    
+    def __init__(self, dim, reduction_ratio=16):
+        """
+        Initialize MLLA block.
+        
+        Args:
+            dim (int): Input channels.
+            reduction_ratio (int): Reduction ratio for adaptive router.
+        """
+        super(MLLABlock, self).__init__()
+        self.dim = dim
+        
+        # Adaptive Router components
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc1 = nn.Linear(dim, dim // reduction_ratio)
+        self.fc2 = nn.Linear(dim // reduction_ratio, 1)
+        self.sigmoid = nn.Sigmoid()
+        
+        # Shallow and deep backbone networks
+        self.shallow_path = nn.Sequential(
+            Conv(dim, dim, 3, 1, 1),
+            nn.BatchNorm2d(dim),
+            nn.ReLU(inplace=True)
+        )
+        
+        self.deep_path = nn.Sequential(
+            Conv(dim, dim, 3, 1, 1),
+            nn.BatchNorm2d(dim),
+            nn.ReLU(inplace=True),
+            Conv(dim, dim, 3, 1, 1),
+            nn.BatchNorm2d(dim),
+            nn.ReLU(inplace=True)
+        )
+        
     def forward(self, x):
-        return self.cv3(torch.cat([self.cv1(x), self.cv2(x)], 1))
-
-class RepNCSPELAN(nn.Module):
-    """RepNCSPELAN Module (Replacement for C3k2 block with RepCSP)"""
-    def __init__(self, c1, c2=None, n=1, shortcut=True, g=1, e=0.5):
-        super().__init__()
-        c2 = c2 or c1
-        c_ = int(c1 * e)  # hidden channels
-        self.cv1 = Conv(c1, c_, 1, 1)
-        self.cv2 = Conv(c1, c_, 1, 1) 
-        self.m = nn.Sequential(*(RepConv(c_, c_) for _ in range(n)))
-        self.cv3 = Conv(2 * c_, c2, 1, 1)
-            
-    def forward(self, x):
-        return self.cv3(torch.cat((self.m(self.cv1(x)), self.cv2(x)), 1))
+        """Forward pass of MLLA block."""
+        B, C, H, W = x.shape
+        
+        # Adaptive Router
+        z = self.global_pool(x).view(B, C)  # Global average pooling
+        z = F.relu(self.fc1(z))
+        s = self.sigmoid(self.fc2(z))  # Complexity score
+        
+        # Path selection based on complexity
+        y1 = self.shallow_path(x)
+        
+        # Dynamic path selection
+        if s.mean() >= 0.5:
+            y2 = self.deep_path(y1)
+            return y2
+        else:
+            return y1
