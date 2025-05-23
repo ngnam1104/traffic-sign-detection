@@ -36,16 +36,16 @@ head:
   
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 14
   - [[-1, 4], 1, Concat, [1]] # cat backbone P3 # 15
-  - [-1, 1, RepNCSPELAN4, [512, 512, 256, 256]] # 16 (P3/8-small)
+  - [-1, 1, RepNCSPELAN, [512, 512, 256, 256]] # 16 (P3/8-small)
   
   - [-1, 1, Conv, [256, 3, 2]] # 17
   - [[-1, 13], 1, Concat, [1]] # cat head P4 # 18
   - [-1, 1, ContextGuidedBlock, []] # 19 - ContextGuidedBlock will use c1 as both input and output
-  - [-1, 1, RepNCSPELAN4, [256]] # 20 (P4/16-medium)
+  - [-1, 1, RepNCSPELAN, [256]] # 20 (P4/16-medium)
   
   - [-1, 1, Conv, [512, 3, 2]] # 21
   - [[-1, 10], 1, Concat, [1]] # cat head P5 # 22
   - [-1, 1, ContextGuidedBlock, []] # 23 - ContextGuidedBlock will use c1 as both input and output
-  - [-1, 2, RepNCSPELAN4, [1024, True]] # 24 (P5/32-large)
+  - [-1, 2, RepNCSPELAN, [1024, True]] # 24 (P5/32-large)
   
   - [[16, 20, 24], 1, Detect, [nc]] # Detect(P3, P4, P5)
