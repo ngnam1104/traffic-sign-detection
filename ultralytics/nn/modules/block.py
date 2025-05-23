@@ -1980,8 +1980,7 @@ class ContextGuidedBlock(nn.Module):
             reduction (int): Channel reduction ratio for attention.
         """
         super(ContextGuidedBlock, self).__init__()
-        if c2 is None:
-            c2 = c1
+        c2 = c2 or c1  # Use c1 if c2 is None
             
         self.c1 = c1
         self.c2 = c2
@@ -2022,44 +2021,48 @@ class ContextGuidedBlock(nn.Module):
         
         return output
 
+
 class MLABlock(nn.Module):
-    """Mamba-Like Linear Attention (MLA) Block from YOLO-FIX paper"""
+    """Mamba-Like Linear Attention (MLLA) Block from YOLO-FIX paper"""
     
-    def __init__(self, dim, reduction_ratio=16):
+    def __init__(self, c1, c2=None, reduction_ratio=16):
         """
-        Initialize MLA block.
+        Initialize MLLA block.
         
         Args:
-            dim (int): Input channels.
+            c1 (int): Input channels.
+            c2 (int): Output channels (if None, same as c1).
             reduction_ratio (int): Reduction ratio for adaptive router.
         """
         super(MLABlock, self).__init__()
-        self.dim = dim
+        c2 = c2 or c1  # Use c1 if c2 is None
+        self.c1 = c1
+        self.c2 = c2
         
         # Adaptive Router components
         self.global_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc1 = nn.Linear(dim, dim // reduction_ratio)
-        self.fc2 = nn.Linear(dim // reduction_ratio, 1)
+        self.fc1 = nn.Linear(c1, c1 // reduction_ratio)
+        self.fc2 = nn.Linear(c1 // reduction_ratio, 1)
         self.sigmoid = nn.Sigmoid()
         
         # Shallow and deep backbone networks
         self.shallow_path = nn.Sequential(
-            Conv(dim, dim, 3, 1, 1),
-            nn.BatchNorm2d(dim),
+            Conv(c1, c2, 3, 1, 1),
+            nn.BatchNorm2d(c2),
             nn.ReLU(inplace=True)
         )
         
         self.deep_path = nn.Sequential(
-            Conv(dim, dim, 3, 1, 1),
-            nn.BatchNorm2d(dim),
+            Conv(c1, c2, 3, 1, 1),
+            nn.BatchNorm2d(c2),
             nn.ReLU(inplace=True),
-            Conv(dim, dim, 3, 1, 1),
-            nn.BatchNorm2d(dim),
+            Conv(c2, c2, 3, 1, 1),
+            nn.BatchNorm2d(c2),
             nn.ReLU(inplace=True)
         )
         
     def forward(self, x):
-        """Forward pass of MLA block."""
+        """Forward pass of MLLA block."""
         B, C, H, W = x.shape
         
         # Adaptive Router
@@ -2072,17 +2075,18 @@ class MLABlock(nn.Module):
         
         # Dynamic path selection
         if s.mean() >= 0.5:
-            y2 = self.deep_path(y1)
+            y2 = self.deep_path(x)
             return y2
         else:
             return y1
+
 
 class RepNCSPELAN(nn.Module):
     """RepNCSPELAN Module (Replacement for C3k2 block with RepCSP)"""
     def __init__(self, c1, c2=None, n=1, shortcut=True, g=1, e=0.5):
         super().__init__()
-        c2 = c2 or c1
-        c_ = int(c1 * e)  # hidden channels
+        c2 = c2 or c1  # Use c1 if c2 is None
+        c_ = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1)
         self.cv2 = Conv(c1, c_, 1, 1) 
         self.m = nn.Sequential(*(RepConv(c_, c_) for _ in range(n)))
