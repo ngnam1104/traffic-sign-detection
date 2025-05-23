@@ -2076,3 +2076,17 @@ class MLABlock(nn.Module):
             return y2
         else:
             return y1
+
+class RepNCSPELAN(nn.Module):
+    """RepNCSPELAN Module (Replacement for C3k2 block with RepCSP)"""
+    def __init__(self, c1, c2=None, n=1, shortcut=True, g=1, e=0.5):
+        super().__init__()
+        c2 = c2 or c1
+        c_ = int(c1 * e)  # hidden channels
+        self.cv1 = Conv(c1, c_, 1, 1)
+        self.cv2 = Conv(c1, c_, 1, 1) 
+        self.m = nn.Sequential(*(RepConv(c_, c_) for _ in range(n)))
+        self.cv3 = Conv(2 * c_, c2, 1, 1)
+            
+    def forward(self, x):
+        return self.cv3(torch.cat((self.m(self.cv1(x)), self.cv2(x)), 1))
