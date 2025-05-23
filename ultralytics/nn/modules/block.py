@@ -2048,6 +2048,19 @@ class MLABlock(nn.Module):
             nn.BatchNorm2d(c1),
             nn.ReLU(inplace=True)
         )
+    def forward(self, x):
+        B, C, _, _ = x.shape  # Lấy c1 từ input
+        
+        # Adaptive Router
+        z = self.global_pool(x).view(B, C)
+        z = F.relu(self.fc1(z))
+        s = self.sigmoid(self.fc2(z))
+        
+        # Dynamic path selection
+        if s.mean() >= 0.5:
+            return self.deep_path(x)
+        else:
+            return self.shallow_path(x)
 
 class RepNCSPELAN(nn.Module):
     """RepNCSPELAN Module (Replacement for C3k2 block with RepCSP)"""
