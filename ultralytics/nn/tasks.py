@@ -1454,9 +1454,6 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
                     args[j] = locals()[a] if a in locals() else ast.literal_eval(a)
         n = n_ = max(round(n * depth), 1) if n > 1 else n  # depth gain
         if m in base_modules:
-            c1, c2 = ch[f], args[0]
-            if c2 != nc:  # if c2 not equal to number of classes (i.e. for Classify() output)
-                c2 = make_divisible(min(c2, max_channels) * width, 8)
             # Special handling for custom modules
             if m is MLABlock:
                 # MLABlock: input channels only, output = input
@@ -1483,6 +1480,9 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
                     args.append(n)
                     n = 1
             else:
+                c1, c2 = ch[f], args[0]
+                if c2 != nc:  # if c2 not equal to number of classes
+                    c2 = make_divisible(min(c2, max_channels) * width, 8)
                 if m is C2fAttn:  # set 1) embed channels and 2) num heads
                     args[1] = make_divisible(min(args[1], max_channels // 2) * width, 8)
                     args[2] = int(max(round(min(args[2], max_channels // 2 // 32)) * width, 1) if args[2] > 1 else args[2])
