@@ -2025,19 +2025,9 @@ class ContextGuidedBlock(nn.Module):
 class MLABlock(nn.Module):
     """Mamba-Like Linear Attention (MLLA) Block from YOLO-FIX paper"""
     
-    def __init__(self, c1, c2=None, reduction_ratio=16):
-        """
-        Initialize MLLA block.
-        
-        Args:
-            c1 (int): Input channels.
-            c2 (int): Output channels (if None, same as c1).
-            reduction_ratio (int): Reduction ratio for adaptive router.
-        """
-        super(MLABlock, self).__init__()
-        c2 = c2 or c1  # Use c1 if c2 is None
+    def __init__(self, c1, reduction_ratio=16):  # Loại bỏ c2, sử dụng c1 từ input
+        super().__init__()
         self.c1 = c1
-        self.c2 = c2
         
         # Adaptive Router components
         self.global_pool = nn.AdaptiveAvgPool2d(1)
@@ -2047,38 +2037,33 @@ class MLABlock(nn.Module):
         
         # Shallow and deep backbone networks
         self.shallow_path = nn.Sequential(
-            Conv(c1, c2, 3, 1, 1),
-            nn.BatchNorm2d(c2),
+            Conv(c1, c1, 3, 1, 1),  # Giữ nguyên số kênh
+            nn.BatchNorm2d(c1),
             nn.ReLU(inplace=True)
         )
         
         self.deep_path = nn.Sequential(
-            Conv(c1, c2, 3, 1, 1),
-            nn.BatchNorm2d(c2),
+            Conv(c1, c1, 3, 1, 1),
+            nn.BatchNorm2d(c1),
             nn.ReLU(inplace=True),
-            Conv(c2, c2, 3, 1, 1),
-            nn.BatchNorm2d(c2),
+            Conv(c1, c1, 3, 1, 1),
+            nn.BatchNorm2d(c1),
             nn.ReLU(inplace=True)
         )
         
     def forward(self, x):
-        """Forward pass of MLLA block."""
-        B, C, H, W = x.shape
+        B, C, _, _ = x.shape  # Lấy c1 từ input
         
         # Adaptive Router
-        z = self.global_pool(x).view(B, C)  # Global average pooling
+        z = self.global_pool(x).view(B, C)
         z = F.relu(self.fc1(z))
-        s = self.sigmoid(self.fc2(z))  # Complexity score
-        
-        # Path selection based on complexity
-        y1 = self.shallow_path(x)
+        s = self.sigmoid(self.fc2(z))
         
         # Dynamic path selection
         if s.mean() >= 0.5:
-            y2 = self.deep_path(x)
-            return y2
+            return self.deep_path(x)
         else:
-            return y1
+            return self.shallow_path(x)
 
 
 class RepNCSPELAN(nn.Module):
