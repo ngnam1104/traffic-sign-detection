@@ -32,7 +32,7 @@ backbone:
 head:
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 11
   - [[-1, 6], 1, Concat, [1]] # cat backbone P4 # 12
-  - [-1, 2, MLABlock, []] # 13 - MLABlock will use c1 as both input and output
+  - [-1, 2, MLABlock, [16]] # 13 - Truyền reduction_ratio=16
   
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 14
   - [[-1, 4], 1, Concat, [1]] # cat backbone P3 # 15
