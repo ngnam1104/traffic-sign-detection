@@ -2023,17 +2023,17 @@ class ContextGuidedBlock(nn.Module):
         return output
 
 class MLABlock(nn.Module):
-    """Mamba-Like Linear Attention (MLLA) Block from YOLO-FIX paper"""
+    """Mamba-Like Linear Attention (MLA) Block from YOLO-FIX paper"""
     
     def __init__(self, dim, reduction_ratio=16):
         """
-        Initialize MLLA block.
+        Initialize MLA block.
         
         Args:
             dim (int): Input channels.
             reduction_ratio (int): Reduction ratio for adaptive router.
         """
-        super(MLLABlock, self).__init__()
+        super(MLABlock, self).__init__()
         self.dim = dim
         
         # Adaptive Router components
@@ -2059,7 +2059,7 @@ class MLABlock(nn.Module):
         )
         
     def forward(self, x):
-        """Forward pass of MLLA block."""
+        """Forward pass of MLA block."""
         B, C, H, W = x.shape
         
         # Adaptive Router
