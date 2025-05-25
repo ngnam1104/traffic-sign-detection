@@ -864,7 +864,7 @@ class RepCSP(C3):
         self.m = nn.Sequential(*(RepBottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)))
 
 
-class RepNCSPELAN4Head(nn.Module):
+class RepNCSPELAN4(nn.Module):
     """
     RepNCSPELAN4 optimized for YOLO detection head.
     
