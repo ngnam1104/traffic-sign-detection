@@ -864,39 +864,105 @@ class RepCSP(C3):
         self.m = nn.Sequential(*(RepBottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)))
 
 
-class RepNCSPELAN4(nn.Module):
-    """CSP-ELAN."""
-
-    def __init__(self, c1, c2, c3, c4, n=1):
+class RepNCSPELAN4Head(nn.Module):
+    """
+    RepNCSPELAN4 optimized for YOLO detection head.
+    
+    Key improvements:
+    - Flexible channel routing for head usage
+    - Optimized for multi-scale feature fusion
+    - Reduced memory footprint
+    - Better gradient flow for detection
+    """
+    
+    def __init__(self, c1, c2, c3=None, c4=None, n=1, e=0.5):
         """
-        Initialize CSP-ELAN layer.
-
+        Initialize RepNCSPELAN4 for head usage.
+        
         Args:
-            c1 (int): Input channels.
-            c2 (int): Output channels.
-            c3 (int): Intermediate channels.
-            c4 (int): Intermediate channels for RepCSP.
-            n (int): Number of RepCSP blocks.
+            c1 (int): Input channels
+            c2 (int): Output channels  
+            c3 (int, optional): Intermediate channels. If None, uses c2
+            c4 (int, optional): RepCSP channels. If None, uses c3//2
+            n (int): Number of RepCSP blocks
+            e (float): Channel expansion ratio
         """
         super().__init__()
+        
+        # Auto-calculate channels if not provided
+        if c3 is None:
+            c3 = max(c1, c2)  # Use larger of input/output
+        if c4 is None:
+            c4 = max(c3 // 2, 64)  # Ensure minimum 64 channels
+            
         self.c = c3 // 2
-        self.cv1 = Conv(c1, c3, 1, 1)
-        self.cv2 = nn.Sequential(RepCSP(c3 // 2, c4, n), Conv(c4, c4, 3, 1))
-        self.cv3 = nn.Sequential(RepCSP(c4, c4, n), Conv(c4, c4, 3, 1))
-        self.cv4 = Conv(c3 + (2 * c4), c2, 1, 1)
-
+        
+        # Input projection with optional channel adjustment
+        self.cv1 = Conv(c1, c3, 1, 1) if c1 != c3 else nn.Identity()
+        
+        # Dual-branch processing optimized for detection
+        self.cv2 = nn.Sequential(
+            RepCSP(self.c, c4, n, shortcut=True, e=e),
+            Conv(c4, c4, 3, 1)
+        )
+        
+        self.cv3 = nn.Sequential(
+            RepCSP(c4, c4, n, shortcut=True, e=e), 
+            Conv(c4, c4, 3, 1)
+        )
+        
+        # Output fusion with residual connection support
+        fusion_channels = c3 + (2 * c4)
+        self.cv4 = Conv(fusion_channels, c2, 1, 1)
+        
+        # Optional residual connection for stable training
+        self.residual = c1 == c2 and c1 <= 512  # Enable for smaller channels
+        
     def forward(self, x):
-        """Forward pass through RepNCSPELAN4 layer."""
-        y = list(self.cv1(x).chunk(2, 1))
-        y.extend((m(y[-1])) for m in [self.cv2, self.cv3])
-        return self.cv4(torch.cat(y, 1))
-
+        """Forward pass optimized for head detection."""
+        identity = x if self.residual else None
+        
+        # Split input
+        if isinstance(self.cv1, nn.Identity):
+            y = list(x.chunk(2, 1))
+        else:
+            y = list(self.cv1(x).chunk(2, 1))
+        
+        # Dual-branch processing
+        branch1 = self.cv2(y[0])  # First half through branch 1
+        branch2 = self.cv3(branch1)  # Sequential processing
+        
+        # Concatenate: original_splits + processed_branches
+        y.extend([branch1, branch2])
+        
+        # Final fusion
+        out = self.cv4(torch.cat(y, 1))
+        
+        # Add residual connection if applicable
+        if identity is not None:
+            out = out + identity
+            
+        return out
+        
     def forward_split(self, x):
-        """Forward pass using split() instead of chunk()."""
-        y = list(self.cv1(x).split((self.c, self.c), 1))
-        y.extend(m(y[-1]) for m in [self.cv2, self.cv3])
-        return self.cv4(torch.cat(y, 1))
-
+        """Alternative forward using split() instead of chunk()."""
+        identity = x if self.residual else None
+        
+        if isinstance(self.cv1, nn.Identity):
+            y = list(x.split((self.c, self.c), 1))
+        else:
+            y = list(self.cv1(x).split((self.c, self.c), 1))
+            
+        branch1 = self.cv2(y[0])
+        branch2 = self.cv3(branch1)
+        
+        y.extend([branch1, branch2])
+        out = self.cv4(torch.cat(y, 1))
+        
+        if identity is not None:
+            out = out + identity
+            
+        return out
 
 class ELAN1(RepNCSPELAN4):
     """ELAN1 module with 4 convolutions."""
