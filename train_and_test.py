@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # ==== CẤU HÌNH ====
     train = True     # Đặt True để train, False để test
     model_id = "traffic-sign-detection/yolo11n.pt"
-    yaml_path = "datasets/tt100k.yaml"
+    yaml_path = "TT100k-3\data.yaml"
     epochs = 100
     batch_size = 16
     imgsz = 1024     # << KÍCH THƯỚC MỚI
