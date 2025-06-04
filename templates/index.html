@@ -18,14 +18,14 @@
     <script src="/static/js/script.js"></script>
     <div class="app-header">
       <div class="container-lg d-flex flex-items-center">
-        <h1 class="f3 m-0">🔍 YOLOv11 Detection</h1>
+        <h1 class="f3 m-0">🔍 Phát hiện biển báo giao thông</h1>
       </div>
     </div>
 
     <div class="container-lg p-responsive py-4">
       <div class="Box mb-4">
         <div class="Box-header d-flex flex-items-center">
-          <h3 class="Box-title pr-3">YOLOv11 Detection Tool</h3>
+          <h3 class="Box-title pr-3"></h3>
         </div>
 
         <div class="Box-body">
@@ -107,7 +107,7 @@
             <span class="text-bold">Tải lên ảnh</span>
           </div>
           <div class="file-actions">
-            <span class="file-info">Phát hiện đối tượng với YOLOv11</span>
+            <span class="file-info"></span>
           </div>
         </div>
         <div class="file-content">
@@ -138,11 +138,9 @@
                 d="M11.5 7a4.499 4.499 0 11-8.998 0A4.499 4.499 0 0111.5 7zm-.82 4.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04z"
               ></path>
             </svg>
-            Phát hiện đối tượng
+            Xử lý ảnh
           </button>
-          <span id="image-loading" class="loading-indicator"
-            >Đang xử lý...</span
-          >
+          <span id="image-loading" class="loading-indicator"></span>
           <div id="image-error" class="error-message"></div>
 
           <div class="result-container">
@@ -192,7 +190,7 @@
             <span class="text-bold">Tải lên video</span>
           </div>
           <div class="file-actions">
-            <span class="file-info">Phát hiện đối tượng với YOLOv11</span>
+            <span class="file-info"></span>
           </div>
         </div>
         <div class="file-content">
@@ -223,11 +221,9 @@
                 d="M11.5 7a4.499 4.499 0 11-8.998 0A4.499 4.499 0 0111.5 7zm-.82 4.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04z"
               ></path>
             </svg>
-            Phát hiện đối tượng
+            Xử lý video
           </button>
-          <span id="video-loading" class="loading-indicator"
-            >Đang xử lý...</span
-          >
+          <span id="video-loading" class="loading-indicator"></span>
           <div id="video-error" class="error-message"></div>
 
           <div class="result-container">
@@ -272,7 +268,7 @@
             <span class="text-bold">Sử dụng Camera</span>
           </div>
           <div class="file-actions">
-            <span class="file-info">Phát hiện đối tượng với YOLOv11</span>
+            <span class="file-info"></span>
           </div>
         </div>
         <div class="file-content">
@@ -304,9 +300,7 @@
             </svg>
             Bắt đầu Camera
           </button>
-          <span id="camera-loading" class="loading-indicator"
-            >Đang xử lý...</span
-          >
+          <span id="camera-loading" class="loading-indicator"></span>
           <div id="camera-error" class="error-message"></div>
 
           <div class="result-container">
@@ -335,375 +329,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Footer -->
-      <!-- <div
-        class="footer container-lg p-responsive py-6 mt-6 f6 border-top color-fg-muted"
-        style="border-color: var(--color-border-default) !important"
-      >
-        <div class="d-flex flex-justify-center">
-          <ul class="list-style-none d-flex flex-wrap">
-            <li class="mr-3">© 2025 YOLOv11 Detection</li>
-            <li class="mr-3">
-              <a href="#" class="Link--secondary">Hướng dẫn</a>
-            </li>
-            <li class="mr-3">
-              <a href="#" class="Link--secondary">Liên hệ</a>
-            </li>
-          </ul>
-        </div>
-      </div> -->
     </div>
-
-    <!-- <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        // Get elements
-        const imageTab = document.getElementById("image-tab");
-        const videoTab = document.getElementById("video-tab");
-        const cameraTab = document.getElementById("camera-tab");
-
-        const imageSection = document.getElementById("image-section");
-        const videoSection = document.getElementById("video-section");
-        const cameraSection = document.getElementById("camera-section");
-
-        const imageInput = document.getElementById("image-input");
-        const imageSubmitBtn = document.getElementById("image-submit");
-        const outputImage = document.getElementById("output-image");
-        const imageLoading = document.getElementById("image-loading");
-        const imageError = document.getElementById("image-error");
-
-        const videoInput = document.getElementById("video-input");
-        const videoSubmitBtn = document.getElementById("video-submit");
-        const outputVideo = document.getElementById("output-video");
-        const videoLoading = document.getElementById("video-loading");
-        const videoError = document.getElementById("video-error");
-
-        const cameraButton = document.getElementById("camera-button"); // This button will toggle Start/Capture
-        const cameraPreview = document.getElementById("camera-preview");
-        const cameraCanvas = document.getElementById("camera-canvas");
-        const cameraOutput = document.getElementById("camera-output");
-        const cameraLoading = document.getElementById("camera-loading");
-        const cameraError = document.getElementById("camera-error");
-
-        let cameraStream = null; // To hold the camera stream
-
-        // --- Helper Functions ---
-        function showLoading(element) {
-          element.classList.add("active");
-        }
-
-        function hideLoading(element) {
-          element.classList.remove("active");
-        }
-
-        function showError(element, message) {
-          element.textContent = message;
-          element.style.display = "block";
-        }
-
-        function hideError(element) {
-          element.textContent = "";
-          element.style.display = "none";
-        }
-
-        function disableButton(button) {
-          button.disabled = true;
-        }
-
-        function enableButton(button) {
-          button.disabled = false;
-        }
-
-        // --- Tab Switching Functionality ---
-        const tabs = {
-          "image-tab": "image-section",
-          "video-tab": "video-section",
-          "camera-tab": "camera-section",
-        };
-
-        Object.keys(tabs).forEach((tabId) => {
-          document
-            .getElementById(tabId)
-            .addEventListener("click", function (e) {
-              e.preventDefault();
-
-              // Stop camera when switching tabs
-              if (cameraStream) {
-                const tracks = cameraStream.getTracks();
-                tracks.forEach((track) => track.stop());
-                cameraPreview.srcObject = null;
-                cameraStream = null;
-                cameraButton.textContent = "Bắt đầu Camera"; // Reset button text
-                hideLoading(cameraLoading);
-                hideError(cameraError);
-                enableButton(cameraButton);
-              }
-
-              // Hide all sections
-              Object.values(tabs).forEach((sectionId) => {
-                document.getElementById(sectionId).classList.add("d-none");
-              });
-
-              // Remove selected class from all tabs
-              Object.keys(tabs).forEach((id) => {
-                document.getElementById(id).classList.remove("selected");
-                document.getElementById(id).removeAttribute("aria-current");
-              });
-
-              // Show selected section and mark tab as selected
-              document.getElementById(tabs[tabId]).classList.remove("d-none");
-              this.classList.add("selected");
-              this.setAttribute("aria-current", "page");
-
-              // Reset previous results and inputs when switching tabs
-              imageInput.value = null;
-              outputImage.src = "/placeholder.svg?height=300&width=400";
-              hideLoading(imageLoading);
-              hideError(imageError);
-              enableButton(imageSubmitBtn);
-
-              videoInput.value = null;
-              outputVideo.src = ""; // Clear video source
-              outputVideo.load(); // Reset video player
-              hideLoading(videoLoading);
-              hideError(videoError);
-              enableButton(videoSubmitBtn);
-
-              cameraOutput.src = "/placeholder.svg?height=300&width=400"; // Reset camera output image
-            });
-        });
-
-        // --- Image Functionality ---
-
-        // Image preview
-        imageInput.addEventListener("change", function (e) {
-          if (e.target.files && e.target.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-              outputImage.src = e.target.result;
-            };
-            reader.readAsDataURL(e.target.files[0]);
-            hideError(imageError); // Clear error on new file selection
-          }
-        });
-
-        // Image detection submission
-        imageSubmitBtn.addEventListener("click", async function () {
-          const file = imageInput.files[0];
-
-          if (!file) {
-            alert("Vui lòng chọn một file ảnh.");
-            return;
-          }
-
-          const formData = new FormData();
-          formData.append("image", file); // 'image' must match the key in app.py request.files
-
-          disableButton(imageSubmitBtn);
-          showLoading(imageLoading);
-          hideError(imageError);
-          outputImage.src = "/placeholder.svg?height=300&width=400"; // Clear previous result
-
-          try {
-            const response = await fetch("/predict_image", {
-              // Endpoint URL
-              method: "POST",
-              body: formData,
-            });
-
-            if (!response.ok) {
-              const errorText = await response.text();
-              throw new Error(
-                `Server error: ${response.status} - ${errorText}`
-              );
-            }
-
-            const result = await response.json();
-            outputImage.src = result.output_path + "?" + new Date().getTime(); // Add timestamp to force refresh
-          } catch (error) {
-            console.error("Lỗi xử lý ảnh:", error);
-            showError(imageError, `Lỗi: ${error.message}`);
-            outputImage.src = "/placeholder.svg?height=300&width=400"; // Show placeholder on error
-          } finally {
-            enableButton(imageSubmitBtn);
-            hideLoading(imageLoading);
-          }
-        });
-
-        // --- Video Functionality ---
-
-        // Video preview
-        videoInput.addEventListener("change", function (e) {
-          if (e.target.files && e.target.files[0]) {
-            outputVideo.src = URL.createObjectURL(e.target.files[0]);
-            hideError(videoError); // Clear error on new file selection
-          }
-        });
-
-        // Video detection submission
-        videoSubmitBtn.addEventListener("click", async function () {
-          const file = videoInput.files[0];
-
-          if (!file) {
-            alert("Vui lòng chọn một file video.");
-            return;
-          }
-
-          const formData = new FormData();
-          formData.append("video", file); // 'video' must match the key in app.py request.files
-
-          disableButton(videoSubmitBtn);
-          showLoading(videoLoading);
-          hideError(videoError);
-          outputVideo.src = ""; // Clear previous video source
-          outputVideo.load(); // Reset video player
-
-          try {
-            const response = await fetch("/predict_video", {
-              // Endpoint URL
-              method: "POST",
-              body: formData,
-            });
-
-            if (!response.ok) {
-              const errorText = await response.text();
-              throw new Error(
-                `Server error: ${response.status} - ${errorText}`
-              );
-            }
-
-            const result = await response.json();
-            // Use the output path provided by the server
-            outputVideo.src = result.output_path + "?" + new Date().getTime(); // Add timestamp to force refresh
-            outputVideo.load(); // Load the new video source
-            outputVideo.play(); // Optionally auto-play
-          } catch (error) {
-            console.error("Lỗi xử lý video:", error);
-            showError(videoError, `Lỗi: ${error.message}`);
-            outputVideo.src = ""; // Clear video on error
-            outputVideo.load();
-          } finally {
-            enableButton(videoSubmitBtn);
-            hideLoading(videoLoading);
-          }
-        });
-
-        // --- Camera Functionality ---
-
-        cameraButton.addEventListener("click", async function () {
-          hideError(cameraError); // Clear previous error
-
-          if (cameraStream) {
-            // Camera is already running, capture a frame and send it
-            const context = cameraCanvas.getContext("2d");
-            cameraCanvas.width = cameraPreview.videoWidth;
-            cameraCanvas.height = cameraPreview.videoHeight;
-            context.drawImage(
-              cameraPreview,
-              0,
-              0,
-              cameraCanvas.width,
-              cameraCanvas.height
-            );
-
-            // Convert canvas content to Blob
-            cameraCanvas.toBlob(
-              async function (blob) {
-                if (!blob) {
-                  showError(
-                    cameraError,
-                    "Không thể chụp khung hình từ camera."
-                  );
-                  return;
-                }
-
-                const formData = new FormData();
-                formData.append("frame", blob, "camera_frame.jpg"); // 'frame' must match the key in app.py
-
-                disableButton(cameraButton);
-                showLoading(cameraLoading);
-                cameraOutput.src = "/placeholder.svg?height=300&width=400"; // Clear previous result
-
-                try {
-                  const response = await fetch("/predict_camera", {
-                    // New endpoint for camera frames
-                    method: "POST",
-                    body: formData,
-                  });
-
-                  if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(
-                      `Server error: ${response.status} - ${errorText}`
-                    );
-                  }
-
-                  const result = await response.json();
-                  cameraOutput.src =
-                    result.output_path + "?" + new Date().getTime(); // Add timestamp to force refresh
-                } catch (error) {
-                  console.error("Lỗi xử lý khung hình camera:", error);
-                  showError(cameraError, `Lỗi: ${error.message}`);
-                  cameraOutput.src = "/placeholder.svg?height=300&width=400"; // Show placeholder on error
-                } finally {
-                  enableButton(cameraButton);
-                  hideLoading(cameraLoading);
-                }
-              },
-              "image/jpeg",
-              0.95
-            ); // Convert to JPEG with 95% quality
-          } else {
-            // Camera is not running, start it
-            disableButton(cameraButton);
-            showLoading(cameraLoading);
-            cameraButton.textContent = "Đang bắt đầu Camera...";
-            cameraOutput.src = "/placeholder.svg?height=300&width=400"; // Reset output on start
-
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-              try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                  video: true,
-                });
-                cameraPreview.srcObject = stream;
-                cameraStream = stream; // Store the stream
-                cameraButton.textContent = "Chụp & Phát hiện"; // Change button text
-
-                // Optional: wait for video metadata to load before enabling capture
-                cameraPreview.onloadedmetadata = () => {
-                  enableButton(cameraButton);
-                  hideLoading(cameraLoading);
-                };
-              } catch (error) {
-                console.error("Lỗi truy cập Camera: ", error);
-                showError(
-                  cameraError,
-                  `Lỗi: ${error.name} - ${error.message}. Vui lòng kiểm tra quyền truy cập camera.`
-                );
-                cameraButton.textContent = "Bắt đầu Camera"; // Reset button text on error
-                enableButton(cameraButton); // Re-enable button
-                hideLoading(cameraLoading);
-              }
-            } else {
-              showError(
-                cameraError,
-                "Trình duyệt của bạn không hỗ trợ truy cập camera."
-              );
-              cameraButton.textContent = "Bắt đầu Camera"; // Reset button text
-              enableButton(cameraButton); // Re-enable button
-              hideLoading(cameraLoading);
-            }
-          }
-        });
-
-        // Stop camera when the user leaves the page
-        window.addEventListener("beforeunload", () => {
-          if (cameraStream) {
-            const tracks = cameraStream.getTracks();
-            tracks.forEach((track) => track.stop());
-          }
-        });
-      });
-    </script> -->
   </body>
 </html>

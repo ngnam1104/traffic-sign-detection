@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
       disableButton(cameraButton);
       showLoading(cameraLoading);
-      cameraButton.textContent = "Đang bắt đầu Camera...";
+      cameraButton.textContent = "Camera đang chạy...";
       cameraOutput.src = "/placeholder.svg?height=300&width=400";
 
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -238,7 +238,7 @@ document.addEventListener("DOMContentLoaded", function () {
           });
           cameraPreview.srcObject = stream;
           cameraStream = stream;
-          cameraButton.textContent = "Chụp & Phát hiện";
+          // cameraButton.textContent = "Chụp & Phát hiện";
 
           cameraPreview.onloadedmetadata = () => {
             enableButton(cameraButton);
